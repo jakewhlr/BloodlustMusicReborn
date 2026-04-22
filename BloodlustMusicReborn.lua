@@ -46,17 +46,19 @@ local function GetAudioFiles()
 
     -- List of all available clips (hardcoded for now, WoW doesn't allow scanning for files)
     local clipNames = {
-        "absolutelycrankinmymfnhog", "all-this-money", "amos-moses", "angel-style",
-        "back-then", "bad-for-yah-health", "bad-toys", "cataclysm", "chop-suey",
-        "cruise-control", "dash-out", "dicke-titten", "divynyls", "do-it-again-remix",
-        "ecstasy-of-soul", "first-light", "glitch-inferno", "gravity", "guiles-theme",
-        "hard-in-the-paint", "holiday", "intergalactic", "jenova-theme-song", "lightbringer",
-        "like-a-train", "love-shack", "maria", "mmmbop", "never-gonna-wake-you-up",
-        "possessed-skelton", "ratatata", "ricky", "rise-up", "rockstar", "savior",
-        "seep-now-in-the-fire", "september-congratulations", "shatter-me-ft-lzzy-hale",
-        "skull-machine", "so-be-it", "star-theme", "still-into-you-remix", "super-freak",
-        "surrender", "taste", "the-last-stand", "theme-song", "toxic", "twisted-romantics",
-        "u-face", "wdhttoco", "when-it-reigns-it-pours", "you-think-i-aint-worth-a-dollar"
+        "9-to-5", "all-night", "all-the-things-she-said", "a-moment-apart",
+        "apab", "artemis", "bangarang", "bfg-division", "big-iron", "bloodmeat",
+        "came-out-swinging", "crawl", "defying-gravity",
+        "diva-dance-from-the-fifth-element-full-version", "dumbest-girl-alive",
+        "electric-daisy-violin", "eyeless", "fall-out-boy", "fuel", "gate-crasher",
+        "gimme-gimme-gimme", "golden", "grillz", "gucci-gucci", "heart-of-courage",
+        "hivemind", "how-its-done-instrumental", "ispy-iwsnt", "kryptonite", "language",
+        "levels", "lights", "material-girl", "midnight-city", "money-machine", "nightlight",
+        "oh-lord", "opalite", "paper-thin", "parasocialmaxxing", "rocky-road-to-dublin",
+        "run-away-with-me", "sandstorm", "sorry-youre-not-a-winner", "srs", "take-on-me",
+        "the-artist-in-the-ambulance", "the-only-thing-they-fear-is-you", "thick-neck",
+        "through-the-fire-and-flames", "titanium", "toxicity", "twice", "union-dixie-trap",
+        "unwritten", "your-graduation", "bullet", "duality", "bring-me-to-life"
     }
 
     for _, name in ipairs(clipNames) do
@@ -68,7 +70,7 @@ end
 
 local function GetTimeBasedAudioFile()
     local files = GetAudioFiles()
-    local index = (time() % #files) + 1
+    local index = (math.floor(GetServerTime() / 60) % #files) + 1
     return files[index], index
 end
 
@@ -85,7 +87,6 @@ local function StopAudio()
     RestoreDialogueSettings()
     isPlaying = false
     currentSoundHandle = nil
-    bloodlustActive = false
     print("|cFF00FF00[BLMR]|r Playback stopped")
 end
 
@@ -143,6 +144,7 @@ local function CheckForBloodlust()
     elseif bloodlustActive and hasteMultiplier <= 0.79 and hasteMultiplier >= 0.74 then
         DebugPrint("Bloodlust ended. Multiplier: " .. string.format("%.4f", hasteMultiplier) .. " (prev: " .. string.format("%.2f", previousHaste) .. "%, curr: " .. string.format("%.2f", currentHaste) .. "%)")
         print("|cFF00FF00[BLMR]|r Bloodlust ended")
+        bloodlustActive = false
         StopAudio()
     end
 
