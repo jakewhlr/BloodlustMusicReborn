@@ -1,4 +1,4 @@
-## Interface: 120001
+## Interface: 120005
 ## Title: BloodlustMusicReborn
 ## Notes: Plays hype music when Bloodlust is cast!
 ## Author: jakew

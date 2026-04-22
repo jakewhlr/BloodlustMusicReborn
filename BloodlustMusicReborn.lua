@@ -12,8 +12,19 @@ local isPlaying = false
 local currentSoundHandle = nil
 local savedDialogueVolume = nil
 local savedDialogueMuted = nil
-local previousHaste = 0
 local bloodlustActive = false
+local stopTimer = nil
+
+local BLOODLUST_LOCKOUT_SPELL_IDS = {
+    [57724]  = true,  -- Sated (after Bloodlust)
+    [57723]  = true,  -- Exhaustion (after Heroism)
+    [80354]  = true,  -- Temporal Displacement (after Time Warp)
+    [95809]  = true,  -- Insanity (after Ancient Hysteria)
+    [160455] = true,  -- Fatigued (after Netherwinds / Primal Rage)
+    [390435] = true,  -- Exhaustion (after Fury of the Aspects)
+}
+
+local BLOODLUST_DURATION = 40  -- seconds
 
 local function DebugPrint(msg)
     if BloodlustMusicRebornDB.debug then
@@ -121,34 +132,43 @@ local function PlayAudio(filePath)
     end
 end
 
-local function CheckForBloodlust()
+local function OnBloodlustDetected()
     if not BloodlustMusicRebornDB.enabled then
         return
     end
-
-    local currentHaste = GetHaste()
-    local hasteMultiplier = (1 + currentHaste / 100) / (1 + previousHaste / 100)
-
-    DebugPrint("Haste check - current: " .. string.format("%.2f", currentHaste) .. "%, prev: " .. string.format("%.2f", previousHaste) .. "%, multiplier: " .. string.format("%.4f", hasteMultiplier))
-
-    -- Detect bloodlust start: multiplier ~1.30 (30% haste buff)
-    -- TODO fix thisl, this will probably also trigger on other 30% buffs
-    if not bloodlustActive and hasteMultiplier >= 1.28 and hasteMultiplier <= 1.32 then
-        bloodlustActive = true
-        local file, index = GetTimeBasedAudioFile()
-        DebugPrint("Bloodlust detected! Multiplier: " .. string.format("%.4f", hasteMultiplier) .. " (prev: " .. string.format("%.2f", previousHaste) .. "%, curr: " .. string.format("%.2f", currentHaste) .. "%)")
-        print("|cFF00FF00[BLMR]|r Bloodlust detected!")
-        PlayAudio(file)
-
-    -- Detect bloodlust end: multiplier ~0.769 (30% buff fell off)
-    elseif bloodlustActive and hasteMultiplier <= 0.79 and hasteMultiplier >= 0.74 then
-        DebugPrint("Bloodlust ended. Multiplier: " .. string.format("%.4f", hasteMultiplier) .. " (prev: " .. string.format("%.2f", previousHaste) .. "%, curr: " .. string.format("%.2f", currentHaste) .. "%)")
-        print("|cFF00FF00[BLMR]|r Bloodlust ended")
-        bloodlustActive = false
-        StopAudio()
+    if bloodlustActive then
+        return
     end
 
-    previousHaste = currentHaste
+    bloodlustActive = true
+    local file, index = GetTimeBasedAudioFile()
+    DebugPrint("Bloodlust detected via lockout debuff (file #" .. index .. ")")
+    print("|cFF00FF00[BLMR]|r Bloodlust detected!")
+    PlayAudio(file)
+
+    if stopTimer then
+        stopTimer:Cancel()
+    end
+    stopTimer = C_Timer.NewTimer(BLOODLUST_DURATION, function()
+        DebugPrint("Bloodlust timer expired")
+        print("|cFF00FF00[BLMR]|r Bloodlust ended")
+        bloodlustActive = false
+        stopTimer = nil
+        StopAudio()
+    end)
+end
+
+local function CheckAddedAurasForBloodlust(addedAuras)
+    for _, aura in ipairs(addedAuras) do
+        local ok, found = pcall(function()
+            return BLOODLUST_LOCKOUT_SPELL_IDS[aura.spellId]
+        end)
+        if ok and found then
+            DebugPrint("Lockout debuff detected: " .. tostring(aura.name) .. " (" .. tostring(aura.spellId) .. ")")
+            OnBloodlustDetected()
+            return
+        end
+    end
 end
 
 local function SlashCommandHandler(msg)
@@ -249,13 +269,18 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
-        previousHaste = GetHaste()
-        DebugPrint("Initialized haste tracking at " .. string.format("%.2f", previousHaste) .. "%")
+        -- Reset state on zone/login so a lingering timer doesn't carry over
+        if stopTimer then
+            stopTimer:Cancel()
+            stopTimer = nil
+        end
+        bloodlustActive = false
 
     elseif event == "UNIT_AURA" then
-        local unit = ...
-        if unit == "player" then
-            CheckForBloodlust()
+        local unit, updateInfo = ...
+        if unit == "player" and updateInfo and not updateInfo.isFullUpdate
+                and updateInfo.addedAuras and #updateInfo.addedAuras > 0 then
+            CheckAddedAurasForBloodlust(updateInfo.addedAuras)
         end
     end
 end)
