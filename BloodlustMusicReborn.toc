@@ -1,8 +1,8 @@
-## Interface: 120005
+## Interface: 120100
 ## Title: BloodlustMusicReborn
 ## Notes: Plays hype music when Bloodlust is cast!
 ## Author: jakew
-## Version: 1.0.0
+## Version: 1.1.0
 ## SavedVariables: BloodlustMusicRebornDB
 
 BloodlustMusicReborn.lua
